@@ -143,15 +143,15 @@ class Py5351(object):
         self.write_to_register(18, value & 0x7f)
 
     # clock power down
-    def clk0_powerup(self):
+    def clk0_powerdown(self):
         value = self.read_from_register(16)
         self.write_to_register(16, value | 0x80)
     
-    def clk1_powerup(self):
+    def clk1_powerdown(self):
         value = self.read_from_register(17)
         self.write_to_register(17, value | 0x80)
         
-    def clk2_powerup(self):
+    def clk2_powerdown(self):
         value = self.read_from_register(18)
         self.write_to_register(18, value | 0x80)
     
@@ -336,6 +336,6 @@ class Py5351(object):
 if __name__ == "__main__":
     py5351 = Py5351()
     py5351.clk0_set_freq(10000000)
-    py5351.clk2_set_freq( 7500000)
+    py5351.clk2_set_freq( 5000000)
     
     
