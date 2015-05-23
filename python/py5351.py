@@ -114,9 +114,14 @@ class Py5351(object):
         '''
         # Calculate the maximum pll frequency that can be used 
         # consistent with its frequency range.
-        pll_div  = float(int(900000000.0 / final_freq))
+        if final_freq < 150000000:
+            pll_div  = float(int(900000000.0 / final_freq))
+        else:
+            pll_div = 4
+            
         if pll_div > 127.0:
             pll_div = 127.0
+        
         pll_freq = final_freq * pll_div
         
         # Calculate multisynth values for the final divider.
