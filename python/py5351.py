@@ -1,7 +1,9 @@
 import i2cpy
 
 class Py5351(object):
-    def __init__(self, xtal_freq = 25000000):
+    ''' Class to control an Si5351 using the I2C Stick interface.
+    '''
+    def __init__(self, xtal_freq = 25000000.0, xtal_corr = 0.0):
         ''' Initialization routine for the py5351 class.
         '''
         # Define any required constants.
@@ -21,8 +23,9 @@ class Py5351(object):
         self.XTAL_LOAD_10PF = 0xd2
         
         # Initialization code.
-        self.xtal_freq = xtal_freq
         self.i2c = i2cpy.core.Py2CStick(deviceAddress = 0x60)
+        self.xtal_freq = float(xtal_freq)
+        self.xtal_corr = float(xtal_corr)
         
         self.clk0_set_clock_source(self.CLK_SRC_PLLA)
         self.clk1_set_clock_source(self.CLK_SRC_PLLA)
@@ -34,7 +37,43 @@ class Py5351(object):
         
         self.plla_reset()
         self.pllb_reset()
-                
+
+    # Properties
+    @property
+    def xtal_corr(self):
+        ''' Property encapsulating the crystal correction factor.
+        '''
+        return self.__xtal_corr
+      
+    @xtal_corr.setter
+    def xtal_corr(self, xtal_corr):
+        ''' Setter encapsulating the crystal correction factor.
+        '''
+        self.__xtal_corr = float(xtal_corr)
+     
+    @property
+    def xtal_freq(self):
+        ''' Property encapsulating the crystal frequency.
+        '''
+        return self.__xtal_freq
+        
+    @xtal_freq.setter
+    def xtal_freq(self, xtal_freq):
+        ''' Setter encapsulating the crystal frequency.
+        '''
+        self.__xtal_freq = float(xtal_freq)
+    
+    @xtal_load.setter
+    def xtal_load(self, xtal_load):
+        ''' Set the crystal load capacitance.
+        '''
+        assert (xtal_load == self.XTAL_LOAD_6PF) or \
+            (xtal_load == self.XTAL_LOAD_8PF) or \
+            (xtal_load == self.XTAL_LOAD_10PF), \
+            "Invalid load capacitance."
+        self.write_to_register(183, xtal_load)
+            
+    # Register access routines                    
     def write_to_register(self, reg_number, value):
         ''' Write a value to an Si5351 register.
         '''
@@ -46,20 +85,16 @@ class Py5351(object):
         ''' Read a value from an Si5351 register.
         '''
         return self.i2c.ReadRegister(reg_number, 1)
-
-    def set_xtal_load(self, xtal_load):
-        ''' Set the crystal load capacitance.
-        '''
-        assert (xtal_load == self.XTAL_LOAD_6PF) or \
-            (xtal_load == self.XTAL_LOAD_8PF) or \
-            (xtal_load == self.XTAL_LOAD_10PF), \
-            "Invalid load capacitance."
-        self.write_to_register(183, xtal_load)
-            
+                                 
     # PLL routines                    
-    def pll_calc_pvals(self, pll_freq, xtal_freq):
+    def pll_calc_pvals(self, pll_freq_, xtal_freq_):
         ''' Calculate pll p values
+            The xtal_freq needs to be the real crystal frequency,
+            including any correction factor.
         '''
+        pll_freq = float(pll_freq_)
+        xtal_freq = float(xtal_freq_)
+        
         a = int(pll_freq / xtal_freq)
         b_over_c = (pll_freq / xtal_freq) - a
         c = (1 << 20) - 1
@@ -109,15 +144,16 @@ class Py5351(object):
         self.write_to_register(41, (msna_p2 >> 0) & 0x00FF)    
 
     # Clock routines
-    def clk_calc_pvals(self, final_freq):
+    def clk_calc_pvals(self, final_freq_):
         ''' Calculate clock p values.
         '''
         # Calculate the maximum pll frequency that can be used 
         # consistent with its frequency range.
-        if final_freq < 150000000:
+        final_freq = float(final_freq_)
+        if final_freq < 150000000.0:
             pll_div  = float(int(900000000.0 / final_freq))
         else:
-            pll_div = 4
+            pll_div = 4.0
             
         if pll_div > 127.0:
             pll_div = 127.0
@@ -133,6 +169,13 @@ class Py5351(object):
         p2 = 0
         p3 = 1
         return pll_freq, (p1, p2, p3)
+
+    def corrected_xtal_freq(xtal_freq_):
+        ''' Calculate a xtal frequency that takes the
+            correction factor into account.
+        '''
+        xtal_freq = float(xtal_freq_)
+        return xtal_freq * (1.0 + xtal_corr / 10000000.0)
 
     # clock power up        
     def clk0_powerup(self):
@@ -297,7 +340,10 @@ class Py5351(object):
         pll_freq, clk_pvals = self.clk_calc_pvals(final_freq)
         
         # Calculate multisynth values for the pll.
-        pll_pvals = self.pll_calc_pvals(pll_freq, self.xtal_freq)  
+        # This calculation takes the specified crystal correction
+        # factor into account.
+        xtal_freq = corrected_xtal_freq(self.xtal_freq)
+        pll_pvals = self.pll_calc_pvals(pll_freq, xtal_freq)  
         
         # Initialize the clock
         self.clk0_reset()
@@ -324,7 +370,8 @@ class Py5351(object):
         pll_freq, clk_pvals = self.clk_calc_pvals(final_freq)
         
         # Calculate multisynth values for the pll.
-        pll_pvals = self.pll_calc_pvals(pll_freq, self.xtal_freq)  
+        xtal_freq = corrected_xtal_freq(self.xtal_freq)
+        pll_pvals = self.pll_calc_pvals(pll_freq, xtal_freq)  
         
         # Initialize the clock
         self.clk2_reset()
@@ -340,7 +387,7 @@ class Py5351(object):
                     
 if __name__ == "__main__":
     py5351 = Py5351()
-    py5351.clk0_set_freq(10000000)
-    py5351.clk2_set_freq( 5000000)
+    py5351.clk0_set_freq(10000000.0)
+    py5351.clk2_set_freq( 5000000.0)
     
     
