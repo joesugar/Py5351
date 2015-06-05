@@ -233,15 +233,15 @@ class Py5351(object):
       
     # clock drive strength
     def clk0_set_clock_drive(self, clk_drive):     
-        value = self.read+_from_register(16)
+        value = self.read_from_register(16)
         self.write_to_register((value & 0xfc) | (clk_drive & 0x03))
                              
     def clk1_set_clock_drive(self, clk_drive):     
-        value = self.read+_from_register(17)
+        value = self.read_from_register(17)
         self.write_to_register((value & 0xfc) | (clk_drive & 0x03))
                              
     def clk2_set_clock_drive(self, clk_drive):     
-        value = self.read+_from_register(18)
+        value = self.read_from_register(18)
         self.write_to_register((value & 0xfc) | (clk_drive & 0x03))
             
     # clock reset                             
