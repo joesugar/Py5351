@@ -26,6 +26,7 @@ class Py5351(object):
         self.i2c = i2cpy.core.Py2CStick(deviceAddress = 0x60)
         self.xtal_freq = float(xtal_freq)
         self.xtal_corr = float(xtal_corr)
+        self.xtal_load = self.XTAL_LOAD_8PF
         
         self.clk0_set_clock_source(self.CLK_SRC_PLLA)
         self.clk1_set_clock_source(self.CLK_SRC_PLLA)
@@ -63,6 +64,12 @@ class Py5351(object):
         '''
         self.__xtal_freq = float(xtal_freq)
     
+    @property
+    def xtal_load(self):
+        ''' Property encapsulating the xtal load
+        '''
+        return self.__xtal_load
+        
     @xtal_load.setter
     def xtal_load(self, xtal_load):
         ''' Set the crystal load capacitance.
@@ -170,12 +177,12 @@ class Py5351(object):
         p3 = 1
         return pll_freq, (p1, p2, p3)
 
-    def corrected_xtal_freq(xtal_freq_):
+    def corrected_xtal_freq(self, xtal_freq_):
         ''' Calculate a xtal frequency that takes the
             correction factor into account.
         '''
         xtal_freq = float(xtal_freq_)
-        return xtal_freq * (1.0 + xtal_corr / 10000000.0)
+        return xtal_freq * (1.0 + self.xtal_corr / 10000000.0)
 
     # clock power up        
     def clk0_powerup(self):
@@ -342,7 +349,7 @@ class Py5351(object):
         # Calculate multisynth values for the pll.
         # This calculation takes the specified crystal correction
         # factor into account.
-        xtal_freq = corrected_xtal_freq(self.xtal_freq)
+        xtal_freq = self.corrected_xtal_freq(self.xtal_freq)
         pll_pvals = self.pll_calc_pvals(pll_freq, xtal_freq)  
         
         # Initialize the clock
@@ -370,7 +377,7 @@ class Py5351(object):
         pll_freq, clk_pvals = self.clk_calc_pvals(final_freq)
         
         # Calculate multisynth values for the pll.
-        xtal_freq = corrected_xtal_freq(self.xtal_freq)
+        xtal_freq = self.corrected_xtal_freq(self.xtal_freq)
         pll_pvals = self.pll_calc_pvals(pll_freq, xtal_freq)  
         
         # Initialize the clock
